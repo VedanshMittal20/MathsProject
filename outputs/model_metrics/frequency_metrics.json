@@ -1,0 +1,25 @@
+{
+  "rows": 384,
+  "poisson_aic": 1839.7592093468763,
+  "negative_binomial_aic": 2408.0682713376004,
+  "poisson_coefficients": {
+    "const": 2.219319363505114,
+    "avg_speed_limit": 0.0011195668130435017,
+    "vehicles_avg": -0.07797463698101795,
+    "casualties_avg": -0.006342427835592669,
+    "fatalities_avg": 0.04651805089062644,
+    "rainy_frac": -0.30583930753113914,
+    "night_frac": -0.0196443332492382,
+    "alcohol_frac": -0.04095656949494056
+  },
+  "negative_binomial_coefficients": {
+    "const": 2.2241705304875503,
+    "avg_speed_limit": 0.0013480635370413474,
+    "vehicles_avg": -0.08768748214612276,
+    "casualties_avg": -0.005808468952761901,
+    "fatalities_avg": 0.053474688255260125,
+    "rainy_frac": -0.349476925169821,
+    "night_frac": -0.016399011999572055,
+    "alcohol_frac": -0.049915672029317626
+  }
+}

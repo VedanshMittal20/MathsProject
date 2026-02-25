@@ -13,8 +13,33 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
 TARGET = "severity_binary"
-NUMERIC_FEATURES = ["speed_limit", "traffic_volume", "lanes", "is_night", "is_rainy", "is_peak_hour", "is_weekend"]
-CATEGORICAL_FEATURES = ["road_type", "intersection_type", "weather", "lighting", "visibility", "vehicle_type"]
+NUMERIC_FEATURES = [
+    "speed_limit",
+    "vehicles_involved",
+    "casualties",
+    "fatalities",
+    "driver_age",
+    "is_night",
+    "is_rainy",
+    "is_peak_hour",
+    "is_weekend",
+    "alcohol_flag",
+]
+CATEGORICAL_FEATURES = [
+    "state_name",
+    "city_name",
+    "month",
+    "day_of_week",
+    "vehicle_type",
+    "weather",
+    "road_type",
+    "road_condition",
+    "lighting",
+    "traffic_control",
+    "driver_gender",
+    "driver_license_status",
+    "location_details",
+]
 
 
 def fit_severity_model(data_path: Path) -> dict:

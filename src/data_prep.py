@@ -5,56 +5,126 @@ from pathlib import Path
 import pandas as pd
 
 
-SEVERITY_MAP = {"minor": 0, "moderate": 0, "serious": 1, "fatal": 1}
+SEVERITY_MAP = {"minor": 0, "moderate": 0, "serious": 1, "fatal": 1, "serious injury": 1}
+INDIA_SEVERITY_MAP = {"minor": 0, "serious": 1, "fatal": 1}
+
+
+def _safe_hour(value: str) -> float | None:
+    """
+    Parse hour from strings like '18:24' or '3:5'. Returns integer hour or None.
+    """
+    try:
+        parts = str(value).split(":")
+        hour = int(parts[0])
+        minute = int(parts[1]) if len(parts) > 1 else 0
+        if 0 <= hour < 24 and 0 <= minute < 60:
+            return hour
+    except Exception:
+        return None
+    return None
 
 
 def load_and_clean(raw_path: Path) -> pd.DataFrame:
+    """
+    Cleaning routine tailored for the accident_prediction_india.csv schema.
+    """
     df = pd.read_csv(raw_path)
 
-    df = df.drop_duplicates(subset=["accident_id"]).copy()
-    df["date_time"] = pd.to_datetime(df["date_time"], errors="coerce")
-    df = df.dropna(subset=["date_time"])  # essential field
+    rename_map = {
+        "State Name": "state_name",
+        "City Name": "city_name",
+        "Year": "year",
+        "Month": "month",
+        "Day of Week": "day_of_week",
+        "Time of Day": "time_of_day",
+        "Accident Severity": "accident_severity",
+        "Number of Vehicles Involved": "vehicles_involved",
+        "Vehicle Type Involved": "vehicle_type",
+        "Number of Casualties": "casualties",
+        "Number of Fatalities": "fatalities",
+        "Weather Conditions": "weather",
+        "Road Type": "road_type",
+        "Road Condition": "road_condition",
+        "Lighting Conditions": "lighting",
+        "Traffic Control Presence": "traffic_control",
+        "Speed Limit (km/h)": "speed_limit",
+        "Driver Age": "driver_age",
+        "Driver Gender": "driver_gender",
+        "Driver License Status": "driver_license_status",
+        "Alcohol Involvement": "alcohol_involvement",
+        "Accident Location Details": "location_details",
+    }
+    df = df.rename(columns=rename_map)
 
-    numeric_cols = ["speed_limit", "traffic_volume", "lanes", "injuries", "fatalities"]
+    df["accident_id"] = df.index + 1  # synthetic unique id
+
+    # Numeric columns
+    numeric_cols = ["year", "speed_limit", "vehicles_involved", "casualties", "fatalities", "driver_age"]
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
         df[col] = df[col].fillna(df[col].median())
 
-    cat_cols = ["road_type", "intersection_type", "weather", "visibility", "lighting", "vehicle_type", "driver_age_group", "injury_severity"]
+    # Categorical columns
+    cat_cols = [
+        "state_name",
+        "city_name",
+        "month",
+        "day_of_week",
+        "time_of_day",
+        "accident_severity",
+        "vehicle_type",
+        "weather",
+        "road_type",
+        "road_condition",
+        "lighting",
+        "traffic_control",
+        "driver_gender",
+        "driver_license_status",
+        "alcohol_involvement",
+        "location_details",
+    ]
     for col in cat_cols:
         df[col] = df[col].fillna("Unknown")
 
-    df = df[df["speed_limit"] >= 0]
-    df = df[df["traffic_volume"] > 0]
+    # Month number for ordering
+    df["month_num"] = pd.to_datetime(df["month"], format="%B", errors="coerce").dt.month
+    df["month_num"] = df["month_num"].fillna(df["month_num"].mode().iloc[0])
 
-    # Feature engineering
-    df["hour"] = df["date_time"].dt.hour
-    df["day_of_week"] = df["date_time"].dt.day_name()
-    df["month"] = df["date_time"].dt.month
-    df["is_weekend"] = df["date_time"].dt.weekday.isin([5, 6]).astype(int)
+    # Time features
+    df["hour"] = df["time_of_day"].apply(_safe_hour)
+    df["hour"] = df["hour"].fillna(df["hour"].mode().iloc[0])
     df["is_night"] = df["hour"].isin([20, 21, 22, 23, 0, 1, 2, 3, 4, 5]).astype(int)
     df["is_peak_hour"] = df["hour"].isin([8, 9, 10, 17, 18, 19]).astype(int)
-    df["is_rainy"] = df["weather"].str.lower().eq("rain").astype(int)
-    df["severity_binary"] = df["injury_severity"].map(SEVERITY_MAP).fillna(0).astype(int)
-    df["date"] = df["date_time"].dt.date
+
+    # Weather / alcohol flags
+    df["is_rainy"] = df["weather"].str.lower().eq("rainy").astype(int)
+    df["alcohol_flag"] = df["alcohol_involvement"].str.lower().eq("yes").astype(int)
+
+    # Weekend flag from day name
+    df["is_weekend"] = df["day_of_week"].str.lower().isin(["saturday", "sunday"]).astype(int)
+
+    # Severity target (minor vs serious/fatal)
+    df["severity_binary"] = (
+        df["accident_severity"].str.lower().map(INDIA_SEVERITY_MAP).fillna(0).astype(int)
+    )
 
     return df
 
 
 def build_frequency_dataset(clean_df: pd.DataFrame) -> pd.DataFrame:
     grouped = (
-        clean_df.groupby(["segment_id", "date"], as_index=False)
+        clean_df.groupby(["state_name", "month_num"], as_index=False)
         .agg(
             accidents=("accident_id", "count"),
-            traffic_volume=("traffic_volume", "mean"),
-            speed_limit=("speed_limit", "mean"),
-            lanes=("lanes", "mean"),
-            is_rainy=("is_rainy", "mean"),
-            is_night=("is_night", "mean"),
-            is_peak_hour=("is_peak_hour", "mean"),
+            avg_speed_limit=("speed_limit", "mean"),
+            vehicles_avg=("vehicles_involved", "mean"),
+            casualties_avg=("casualties", "mean"),
+            fatalities_avg=("fatalities", "mean"),
+            rainy_frac=("is_rainy", "mean"),
+            night_frac=("is_night", "mean"),
+            alcohol_frac=("alcohol_flag", "mean"),
         )
     )
-    grouped["accidents_per_10k_vehicles"] = grouped["accidents"] / grouped["traffic_volume"] * 10_000
     return grouped
 
 

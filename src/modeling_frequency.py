@@ -7,7 +7,7 @@ import pandas as pd
 import statsmodels.api as sm
 
 
-FEATURES = ["traffic_volume", "speed_limit", "lanes", "is_rainy", "is_night", "is_peak_hour"]
+FEATURES = ["avg_speed_limit", "vehicles_avg", "casualties_avg", "fatalities_avg", "rainy_frac", "night_frac", "alcohol_frac"]
 TARGET = "accidents"
 
 
