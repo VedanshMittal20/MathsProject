@@ -22,7 +22,8 @@ endfunction
 
 // Load compact numeric dataset (13 columns, first is severity_binary)
 core_path = "data/processed/accidents_core_numeric.csv";
-core = csvRead(core_path, ",", ".", 1); // skip header row
+core = csvRead(core_path, ",", ".", "double"); // read as numbers
+core = core(2:$, :); // drop header row
 y = core(:, 1);
 X = core(:, 2:$);
 X = [ones(size(X, 1), 1) X]; // add intercept
@@ -36,7 +37,8 @@ disp(acc);
 
 // Frequency modeling: simple log-linear regression on accidents
 freq_path = "data/processed/frequency_dataset_numeric.csv";
-freq = csvRead(freq_path, ",", ".", 1);
+freq = csvRead(freq_path, ",", ".", "double");
+freq = freq(2:$, :); // drop header row
 // Columns: state_code, month_num, accidents, avg_speed_limit, vehicles_avg,
 // casualties_avg, fatalities_avg, rainy_frac, night_frac, alcohol_frac
 y_freq = freq(:, 3);
